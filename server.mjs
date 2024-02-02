@@ -5,6 +5,11 @@ import { join } from "path";
 import { tmpdir } from "os";
 console.log("Running");
 
+const HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "content-type": "application/json",
+};
+
 async function runTwelf(preludeTwelf, viewTwelf) {
   const tempTwelfDir = await mkdtemp(join(tmpdir(), "twelf-"));
   try {
@@ -22,6 +27,7 @@ async function runTwelf(preludeTwelf, viewTwelf) {
         }
       );
     });
+    console.log(stdout);
 
     if (!error && stderr !== "") {
       return {
@@ -29,7 +35,6 @@ async function runTwelf(preludeTwelf, viewTwelf) {
         msg: "Unexpected response from Twelf: stderr was nonempty but process returned success.",
       };
     } else if (error && error.code !== 137) {
-      console.log({ error, stdout, stderr });
       return {
         error: true,
         msg: "Unexpected response from Twelf: process returned failure but was not terminated by SIGKILL.",
@@ -93,7 +98,6 @@ async function runTwelf(preludeTwelf, viewTwelf) {
         }
       } else {
         if (i !== lines.length - 2) {
-          console.log(lines);
           return {
             error: true,
             msg: "Unexpected response from Twelf: 'closing file' message was not the next-to-last line",
@@ -126,7 +130,7 @@ async function runTwelf(preludeTwelf, viewTwelf) {
         .replaceAll(viewFile, "input.elf"),
     };
   } finally {
-    // await rm(tempTwelfDir, { recursive: true, force: true });
+    await rm(tempTwelfDir, { recursive: true, force: true });
   }
 }
 
@@ -159,13 +163,13 @@ createServer((req, resp) => {
               twelfParts.length === 2 ? twelfParts : ["", twelfParts[0]];
             runTwelf(prelude, view)
               .then((result) => {
-                resp.writeHead(200, { "content-type": "application/json" });
+                resp.writeHead(200, HEADERS);
                 resp.end(JSON.stringify(result));
               })
               .catch((e) => {
                 console.log("Unexpected error calling Twelf");
                 console.log(e);
-                resp.writeHead(500).end();
+                resp.writeHead(500, HEADERS).end("{}");
               });
           }
         });
@@ -176,6 +180,7 @@ createServer((req, resp) => {
       resp.writeHead(404).end();
     }
   } catch (e) {
+    console.log("Unexpected error");
     console.log(e);
     resp.writeHead(500).end();
   }
