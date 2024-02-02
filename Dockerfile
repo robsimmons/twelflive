@@ -1,62 +1,41 @@
 # syntax = docker/dockerfile:1
+# To build:
+# docker build --platform=linux/amd64 -t twelflive .
+# To run:
+# docker run -it twelflive
 
-# Make sure RUBY_VERSION matches the Ruby version in .ruby-version and Gemfile
-ARG RUBY_VERSION=3.2.2
-FROM registry.docker.com/library/ruby:$RUBY_VERSION-slim as base
+FROM node:21-bookworm-slim as base
 
-# Rails app lives here
-WORKDIR /rails
-
-# Set production environment
-ENV RAILS_ENV="production" \
-    BUNDLE_DEPLOYMENT="1" \
-    BUNDLE_PATH="/usr/local/bundle" \
-    BUNDLE_WITHOUT="development"
-
-
-# Throw-away build stage to reduce size of final image
 FROM base as build
 
-# Install packages needed to build gems
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libvips pkg-config
+    apt-get install --no-install-recommends -y binutils curl libc-dev gcc make
 
-# Install application gems
-COPY Gemfile Gemfile.lock ./
-RUN bundle install && \
-    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
-    bundle exec bootsnap precompile --gemfile
+WORKDIR /usr
+RUN curl -L http://smlnj.cs.uchicago.edu/dist/working/110.99.4/config.tgz > sml.tgz
+RUN tar xzvf sml.tgz
+RUN config/install.sh
 
-# Copy application code
-COPY . .
+WORKDIR /
+RUN curl -L http://twelf.org/releases/twelf-src-1.7.1.tar.gz > twelf.tgz
+RUN tar xzvf twelf.tgz
+WORKDIR /twelf
+RUN make smlnj
 
-# Precompile bootsnap code for faster boot times
-RUN bundle exec bootsnap precompile app/ lib/
-
-# Precompiling assets for production without requiring secret RAILS_MASTER_KEY
-RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
-
-
-# Final stage for app image
 FROM base
 
-# Install packages needed for deployment
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libsqlite3-0 libvips && \
-    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+    apt-get install --no-install-recommends
 
-# Copy built artifacts: gems, application
-COPY --from=build /usr/local/bundle /usr/local/bundle
-COPY --from=build /rails /rails
+COPY --from=build /usr/bin/.run-sml /usr/bin/.run-sml
+COPY --from=build /usr/bin/sml /usr/bin/sml
+COPY --from=build /usr/bin/.run/run.amd64-linux /usr/bin/.run/run.amd64-linux 
+COPY --from=build /usr/bin/.arch-n-opsys /usr/bin/.arch-n-opsys 
+COPY --from=build /twelf/bin/twelf-server /twelf/bin/twelf-server
+COPY --from=build /twelf/bin/.heap/twelf-server.amd64-linux /twelf/bin/.heap/twelf-server.amd64-linux 
+COPY server.mjs /server.mjs
+COPY twelf-ulimit.sh /twelf-ulimit.sh
 
-# Run and own only the runtime files as a non-root user for security
-RUN useradd rails --create-home --shell /bin/bash && \
-    chown -R rails:rails db log storage tmp
-USER rails:rails
-
-# Entrypoint prepares the database.
-ENTRYPOINT ["/rails/bin/docker-entrypoint"]
-
-# Start the server by default, this can be overwritten at runtime
-EXPOSE 3000
-CMD ["./bin/rails", "server"]
+ENV PORT=3210
+EXPOSE ${PORT}
+CMD ["node", "server.mjs"]
