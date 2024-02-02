@@ -17,7 +17,6 @@ async function runTwelf(preludeTwelf, viewTwelf) {
     const viewFile = join(tempTwelfDir, "view.elf");
     await writeFile(preludeFile, preludeTwelf);
     await writeFile(viewFile, viewTwelf);
-    console.log({ preludeFile, viewFile });
 
     const [error, stdout, stderr] = await new Promise((resolve) => {
       exec(
@@ -27,6 +26,7 @@ async function runTwelf(preludeTwelf, viewTwelf) {
         }
       );
     });
+    console.log({ preludeFile, viewFile });
     console.log(stdout);
 
     if (!error && stderr !== "") {
@@ -97,13 +97,17 @@ async function runTwelf(preludeTwelf, viewTwelf) {
           };
         }
       } else {
-        if (i !== lines.length - 2) {
+        if (i === lines.length - 2) {
+          server = lines[i + 1];
+        } else if (i === lines.length - 3) {
+          output.push(lines[i + 1]);
+          server = lines[i + 2];
+        } else {
           return {
             error: true,
-            msg: "Unexpected response from Twelf: 'closing file' message was not the next-to-last line",
+            msg: "Unexpected response from Twelf: 'closing file' message earlier than expected",
           };
         }
-        server = lines[i + 1];
       }
     } else {
       // Unsuccessful prelude load: output result of prelude load
