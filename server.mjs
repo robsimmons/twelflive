@@ -97,17 +97,12 @@ async function runTwelf(preludeTwelf, viewTwelf) {
           };
         }
       } else {
-        if (i === lines.length - 2) {
-          server = lines[i + 1];
-        } else if (i === lines.length - 3) {
-          output.push(lines[i + 1]);
-          server = lines[i + 2];
-        } else {
-          return {
-            error: true,
-            msg: "Unexpected response from Twelf: 'closing file' message earlier than expected",
-          };
+        i += 1;
+        while (i < lines.length - 1) {
+          output.push(lines[i]);
+          i += 1;
         }
+        server = lines[i];
       }
     } else {
       // Unsuccessful prelude load: output result of prelude load
