@@ -28,6 +28,7 @@ async function runTwelf(preludeTwelf, viewTwelf) {
         msg: "Unexpected response from Twelf: stderr was nonempty but process returned success.",
       };
     } else if (error && error.code !== 137) {
+      console.log({ error, stdout, stderr });
       return {
         error: true,
         msg: "Unexpected response from Twelf: process returned failure but was not terminated by SIGKILL.",
