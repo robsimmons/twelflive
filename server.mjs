@@ -12,6 +12,7 @@ async function runTwelf(preludeTwelf, viewTwelf) {
     const viewFile = join(tempTwelfDir, "view.elf");
     await writeFile(preludeFile, preludeTwelf);
     await writeFile(viewFile, viewTwelf);
+    console.log({ preludeFile, viewFile });
 
     const [error, stdout, stderr] = await new Promise((resolve) => {
       exec(
@@ -125,7 +126,7 @@ async function runTwelf(preludeTwelf, viewTwelf) {
         .replaceAll(viewFile, "input.elf"),
     };
   } finally {
-    await rm(tempTwelfDir, { recursive: true, force: true });
+    // await rm(tempTwelfDir, { recursive: true, force: true });
   }
 }
 
