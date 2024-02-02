@@ -26,8 +26,6 @@ async function runTwelf(preludeTwelf, viewTwelf) {
         }
       );
     });
-    console.log({ preludeFile, viewFile });
-    console.log(stdout);
 
     if (!error && stderr !== "") {
       return {
